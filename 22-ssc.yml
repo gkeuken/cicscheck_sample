@@ -1,0 +1,35 @@
+regiontags:
+  - cicsts-RegionUsage:
+      - Unique: "No"
+      - UsageTag: 
+        - Tag: "MVS6.Engineering"
+        - APPLID: "CICSTS63"
+          search: "DFHSI1517"
+          mq: True
+          mqssid: CSQ9
+          db2: True
+          db2ssid: DBD1
+          tran: IVC2
+          tranmsg: 'IVC2 Stopping'
+      - UsageTag:
+        - Tag: "MVS1.Engineering"
+        - APPLID: "CICSTS64"
+          search: "DFHSI1517"
+          db2: True
+          db2ssid: DBD0
+          mq: True
+          mqssid: CSQ1
+          tran: IVC2
+          tranmsg: 'IVC2 Stopping'
+        - APPLID: "CICSTS65"
+  - cicsts-ApplUsage:
+      - Unique: "No"
+      - UsageTag: 
+        - Tag: "MVS6.APPLICATION"
+        - APPLID: "CICSAPP1"
+        - APPLID: "CSQAPPL1"
+      - UsageTag: 
+        - Tag: "MVS1.APPLICATION"
+        - APPLID: "CICSAPP2"
+        - APPLID: "CSQAPPL2"
+          

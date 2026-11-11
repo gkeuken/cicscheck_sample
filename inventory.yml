@@ -1,0 +1,41 @@
+---
+# Ansible Inventory for z/OS Systems
+# This inventory file defines the z/OS hosts and connection parameters
+
+zos_hosts:
+  hosts:
+    zos_host:
+      ansible_host: 9.31.120.248
+      ansible_ssh_user: gkeuken
+      ansible_python_interpreter: /usr/lpp/IBM/cyp/v3r14/pyz/bin/python3
+    zos_host2:
+      ansible_host: 10.0.0.251
+      ansible_ssh_user: IBMUSER
+      ansible_python_interpreter: /usr/lpp/IBM/cyp/v3r14/pyz/bin/python3
+    zos_host3:  
+      ansible_host: 172.26.1.2
+      ansible_ssh_user: IBMUSER
+      ansible_python_interpreter: /usr/lpp/IBM/cyp/v3r14/pyz/bin/python3
+    zos_host4:  
+      ansible_host: 129.40.95.122
+      ansible_ssh_port: 2222
+      ansible_ssh_user: ZOSADMN
+      ansible_python_interpreter: /usr/lpp/IBM/cyp/v3r14/pyz/bin/python3
+      
+      
+  vars:
+    ansible_port: 22
+
+    # Environment settings
+    environment_vars:
+      PYTHONSTDINENCODING: "cp1047"
+      _BPXK_AUTOCVT: 'ON'
+      _CEE_RUNOPTS: "FILETAG(AUTOCVT,AUTOTAG) POSIX(ON)"
+      _TAG_REDIR_ERR: "txt"
+      _TAG_REDIR_IN: "txt"
+      _TAG_REDIR_OUT: "txt"
+      _BPX_SHAREAS: "YES"
+      _BPX_SPAWN_SCRIPT: "YES"
+      ZOAU_HOME: "/usr/lpp/IBM/zoautil"
+      LIBPATH: "/usr/lpp/IBM/zoautil/lib:/lib:/usr/lib:."
+      PATH: "/usr/lpp/IBM/zoautil/bin:/bin:/usr/bin:."

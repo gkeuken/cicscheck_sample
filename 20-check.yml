@@ -1,0 +1,86 @@
+- name: Go get JESMSGLG output
+  hosts: zos_host2
+  environment: "{{ environment_vars }}"
+  vars:
+    failures: [] 
+    target_tag: 'MVS1.Engineering'
+    log_file: '/tmp/ansible_cics_log.txt'
+  vars_files:
+    - 22-ssc.yml
+
+  tasks:
+
+    - name: Find UsageTag matching requested tag
+      ansible.builtin.set_fact:
+        selected_usage: "{{ item.UsageTag }}"
+      loop: "{{ regiontags[0]['cicsts-RegionUsage'] }}"
+      when:
+        - item.UsageTag is defined
+        - item.UsageTag[0].Tag == target_tag
+
+    - name: Create list of APPLIDs
+      ansible.builtin.set_fact:
+        applids: >-
+          {{
+            selected_usage
+            | selectattr('APPLID', 'defined')
+            | map(attribute='APPLID')
+            | list
+          }}
+
+    - name: Display APPLIDs for requested Tag
+      ansible.builtin.debug:
+        var: applids
+
+    - name: Get regions and attributes for requested tag
+      ansible.builtin.set_fact:
+        regions: >-
+          {{
+            selected_usage
+            | selectattr('APPLID', 'defined')
+            | list
+          }}
+
+    - name: Process regions
+      ansible.builtin.debug:
+        msg: 
+          - "{{ region.APPLID }}"
+          - "{{ region.search | default('No Search Message') }}"
+          - "{{ region.db2 | default('No DB2 Connection') }}"
+          - "{{ region.db2ssid | default('No DB2 SSID') }}"
+          - "{{ region.mq | default('No MQ Connection') }}"
+          - "{{ region.mqssid | default('No MQ SSID') }}"
+          - "{{ region.tran | default('No Test Transaction') }}"
+          - "{{ region.tranmsg | default('No Transaction Message') }}"
+      loop_control:
+        loop_var: region      
+      loop: "{{ regions }}"
+
+    - name: Check {{ region.APPLID }}
+      ansible.builtin.include_tasks: 21-region.yml
+      loop: "{{ regions }}"
+      loop_control:
+        loop_var: region
+        label: "{{ region.APPLID }}"
+
+
+    - name: Write all failures to log
+      ansible.builtin.lineinfile:
+        path: "{{ log_file }}"
+        create: true
+        line: "{{ '%Y-%m-%d %H:%M:%S' | strftime }} {{ inventory_hostname }} ***Critical Error*** {{ item }}"
+      loop: "{{ failures }}"
+      delegate_to: localhost
+
+    - name: Log success when nothing failed
+      ansible.builtin.lineinfile:
+        path: "{{ log_file }}"
+        create: true
+        line: "{{ '%Y-%m-%d %H:%M:%S' | strftime }} {{ inventory_hostname }} No Errors found"
+      when: failures | length == 0
+      delegate_to: localhost
+
+    - name: Fail the play if any check failed
+      ansible.builtin.fail:
+        msg: "{{ failures }}"
+      when: failures | length > 0

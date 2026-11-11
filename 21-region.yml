@@ -1,0 +1,169 @@
+    - name: Reset Flags/Fact for each run
+      ansible.builtin.set_fact:
+        search_failed: False
+        db2con_failed: False
+        mqcon_failed: False
+        tran_failed: False
+        jout: {}
+        tranout: {}
+        db2out: {}
+        mqout: {}
+        tranassert: ''
+        db2assert: ''
+        mqassert: ''
+
+    - name: Display {{ region.APPLID }} 
+      ibm.ibm_zos_core.zos_operator:
+        cmd: 'd a,{{ region.APPLID }}'
+      register: getcics
+
+    - name: block  
+      when: "'NOT FOUND' not in getcics.stdout"
+      block:     
+
+        - name: Get STCID for {{ region.APPLID }}
+          ansible.builtin.set_fact:
+            cics_id: "{{ getcics.stdout | regex_search('WUID=(\\w+)', '\\1') | first }}"
+
+        - debug: msg="{{ cics_id }}"
+
+#
+# Message search section
+#
+
+        - name: Retrieve JES spool output for {{ region.APPLID }}
+          ibm.ibm_zos_core.zos_job_output:
+            job_id: "{{ cics_id }}"
+            dd_name: "JESMSGLG"
+          register: jout
+          when: region.search is defined  
+
+        - name: Search for {{ region.search }} in {{ region.APPLID }} and set fact. Fail if not found
+          ansible.builtin.set_fact:
+            cicslog: "{{ jout.jobs[0].dds | selectattr('dd_name','eq','JESMSGLG') | map(attribute='content') | flatten | join('\n') }}"
+          when: region.search is defined 
+
+        - name: Record Search failure
+          ansible.builtin.set_fact:
+            failures: "{{ failures + [region.APPLID ~ ': Search expected to find string ' ~ region.search ~ ' was not found in JES log'] }}"
+          when: region.search is defined and region.search not in cicslog
+
+#
+# Test Transaction section
+#
+
+        - name: Run test Transaction {{ region.tran }}
+          ibm.ibm_zos_core.zos_operator:
+            cmd: 'f {{ region.APPLID }},{{ region.tran }}'
+          register: tranout
+          when: region.tran is defined
+
+        - name: Test Transaction Assertion that transaction message produced as expected
+          ansible.builtin.assert:
+            that:
+              - region.tranmsg in tranout.stdout
+          when: region.tran is defined 
+          register: tranassert
+          ignore_errors: True
+
+        - name: Check Transaction Assertions
+          ansible.builtin.set_fact:
+            tran_failed: True
+          when:
+            - region.tran is defined
+            - tranassert.msg is defined
+            - "'Assertion failed' in tranassert.msg"
+
+        - name: Record Test Transaction failure
+          ansible.builtin.set_fact:
+            failures: "{{ failures + [region.APPLID ~ ': Test Transaction ' ~ region.tran ~ ' either failed or produced unexpected output'] }}"
+          when: tran_failed
+
+#
+# Db2 Section
+#
+#
+        - name: Check DB2 Connection for {{ region.APPLID }}
+          ibm.ibm_zos_core.zos_operator:
+            cmd: 'f {{ region.APPLID }},cemt i db2conn'
+          register: db2out
+          when: region.db2 | default(false)
+
+        - debug: msg="{{ db2out.stdout }}" 
+          when: region.db2 | default(false)
+
+        - name: Search for {{ region.db2ssid }} in {{ region.APPLID }} and set fact. Fail if not different than expected
+          ansible.builtin.set_fact:
+            Db2id: "{{ db2out.stdout | regex_search('Db2id\\(\\s*(\\w+)\\s*\\)', '\\1') | default('None') | first }}"
+          when: region.db2 | default(false)
+
+        - debug: msg="{{ Db2id }} {{ region.db2ssid }}"
+          when: region.db2 | default(false)
+
+        - assert: 
+            that:
+              - Db2id == region.db2ssid
+          when: region.db2 | default(false)
+          register: db2assert
+          ignore_errors: True
+
+        - name: Check Db2 Assertions
+          ansible.builtin.set_fact:
+            db2con_failed: True
+          when: 
+            - region.db2 | default(false)
+            - db2assert.msg is defined
+            - "'Assertion failed' in db2assert.msg"
+        
+        - name: Record Db2 Connection failure
+          ansible.builtin.set_fact:
+            failures: "{{ failures + [region.APPLID ~ ': Db2 Connection ' ~ region.db2ssid ~ ' not found to be active'] }}"
+          when: db2con_failed
+        
+#
+#  MQ Section
+#
+
+        - name: Check MQ Connection
+          ibm.ibm_zos_core.zos_operator:
+            cmd: 'f {{ region.APPLID }},cemt i mqconn'
+          register: mqout
+          when: region.mq | default(false)
+
+        - debug: msg="{{ mqout.stdout }}"
+          when: region.mq | default(false)
+
+        - name: Search for {{ region.mqssid }} in {{ region.APPLID }} and set fact. Fail if not different than expected
+          ansible.builtin.set_fact:
+            Mqqmgr: "{{ mqout.stdout | regex_search('Mqqmgr\\((\\w+)\\)', '\\1') | default('None') | first }}"
+          when: region.mq | default(false)
+
+        - name: Check that {{ region.mqssid }} in {{ region.APPLID }} is connected. Fail if not
+          ansible.builtin.set_fact:
+            Connectst: "{{ mqout.stdout | regex_search('Connectst\\(\\s*(\\w+)\\s*\\)', '\\1') | default('None') | first }}"
+          when: region.mq | default(false)
+
+        - debug: msg="{{ Mqqmgr }} {{ region.mqssid }} {{ Connectst }}"
+          when: region.mq | default(false)
+
+        - name: MQ Assertions
+          ansible.builtin.assert:
+            that:
+              - Connectst == 'Connected'
+              - region.mqssid == Mqqmgr
+          when: region.mq | default(false)
+          register: mqassert
+          ignore_errors: True
+
+        - name: Check MQ Assertions
+          ansible.builtin.set_fact:
+            mqcon_failed: True
+          when: 
+            - region.mq | default(false)
+            - mqassert.msg is defined
+            - "'Assertion failed' in mqassert.msg" 
+
+        - name: Record MQ Connection failure
+          ansible.builtin.set_fact:
+            failures: "{{ failures + [region.APPLID ~ ': MQ Connection ' ~ region.mqssid ~ ' not found to be connected'] }}"
+          when: mqcon_failed
