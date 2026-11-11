@@ -1,5 +1,5 @@
 - name: Go get JESMSGLG output
-  hosts: zos_host2
+  hosts: zos_host
   environment: "{{ environment_vars }}"
   vars:
     failures: [] 
