@@ -11,6 +11,10 @@
         tranassert: ''
         db2assert: ''
         mqassert: ''
+        Db2id: ''
+        Mqqmgr: ''
+        Connectst: ''
+        cicslog: ''
 
     - name: Display {{ region.APPLID }} 
       ibm.ibm_zos_core.zos_operator:
@@ -48,6 +52,15 @@
             failures: "{{ failures + [region.APPLID ~ ': Search expected to find string ' ~ region.search ~ ' was not found in JES log'] }}"
           when: region.search is defined and region.search not in cicslog
 
+        - name: Record Success
+          ansible.builtin.set_fact:
+            successes: "{{ successes + [region.APPLID ~ ': Search Message ' ~ region.search ~ ' Successfully found in JES Joblog'] }}"
+          when: 
+            - region.search is defined 
+            - region.search in cicslog 
+            - log_successes | bool 
+
+
 #
 # Test Transaction section
 #
@@ -79,6 +92,14 @@
             failures: "{{ failures + [region.APPLID ~ ': Test Transaction ' ~ region.tran ~ ' either failed or produced unexpected output'] }}"
           when: tran_failed
 
+        - name: Record Success
+          ansible.builtin.set_fact:
+            successes: "{{ successes + [region.APPLID ~ ': Test Transaction ' ~ region.tran ~ ' Successfully executed'] }}"
+          when: 
+            - region.tran is defined
+            - not tran_failed
+            - log_successes | bool
+
 #
 # Db2 Section
 #
@@ -100,12 +121,12 @@
             - db2out.stdout | regex_search('Db2id\\(\\s*(\\w+)\\s*\\)', '\\1') is not none
 
         - debug: msg="{{ Db2id }} {{ region.db2ssid }}"
-          when: region.db2 | default(false) and Db2id is defined
+          when: region.db2 | default(false) and Db2id != ''
 
         - assert: 
             that:
               - Db2id == region.db2ssid
-          when: region.db2 | default(false) and Db2id is defined
+          when: region.db2 | default(false) and Db2id != ''
           register: db2assert
           ignore_errors: True
 
@@ -120,8 +141,18 @@
         - name: Record Db2 Connection failure
           ansible.builtin.set_fact:
             failures: "{{ failures + [region.APPLID ~ ': Db2 Connection ' ~ region.db2ssid ~ ' not found to be active'] }}"
-          when: db2con_failed or Db2id is not defined
+          when: 
+            - region.db2 | default(false) 
+            - db2con_failed or Db2id == ''
         
+        - name: Record Success
+          ansible.builtin.set_fact:
+            successes: "{{ successes + [region.APPLID ~ ': Connected to Db2 Subsystem ' ~ region.db2ssid] }}"
+          when: 
+            - region.db2 | default(false)
+            - not db2con_failed
+            - Db2id != ''
+            - log_successes | bool
 #
 #  MQ Section
 #
@@ -145,17 +176,22 @@
         - name: Check that {{ region.mqssid }} in {{ region.APPLID }} is connected. Fail if not
           ansible.builtin.set_fact:
             Connectst: "{{ mqout.stdout | regex_search('Connectst\\(\\s*(\\w+)\\s*\\)', '\\1') | default('None') | first }}"
-          when: region.mq | default(false) and Mqqmgr is defined
+          when:
+            - region.mq | default(false) 
+            - Mqqmgr != ''
+            - mqout.stdout | regex_search('Connectst\\(\\s*(\\w+)\\s*\\)', '\\1') is not none 
 
         - debug: msg="{{ Mqqmgr }} {{ region.mqssid }} {{ Connectst }}"
-          when: region.mq | default(false) and Mqqmgr is defined
+          when: 
+            - region.mq | default(false) and Mqqmgr != ''
+            - mqout.stdout | regex_search('Connectst\\(\\s*(\\w+)\\s*\\)', '\\1') is not none
 
         - name: MQ Assertions
           ansible.builtin.assert:
             that:
               - Connectst == 'Connected'
               - region.mqssid == Mqqmgr
-          when: region.mq | default(false) and Mqqmgr is defined
+          when: region.mq | default(false) and Mqqmgr != ''
           register: mqassert
           ignore_errors: True
 
@@ -170,4 +206,16 @@
         - name: Record MQ Connection failure
           ansible.builtin.set_fact:
             failures: "{{ failures + [region.APPLID ~ ': MQ Connection ' ~ region.mqssid ~ ' not found to be connected'] }}"
-          when: mqcon_failed or Mqqmgr is not defined
+          when: 
+            - region.mq | default(false)
+            - mqcon_failed or Mqqmgr == ''
+
+        - name: Record Success
+          ansible.builtin.set_fact:
+            successes: "{{ successes + [region.APPLID ~ ': Connected to MQ Subsystem ' ~ region.mqssid] }}"
+          when: 
+            - region.mq | default(false)
+            - Mqqmgr != ''
+            - not mqcon_failed
+            - log_successes | bool
+            

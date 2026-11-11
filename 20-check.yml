@@ -1,14 +1,23 @@
-- name: Go get JESMSGLG output
+- name: Run CICS Health Check
   hosts: zos_host
   environment: "{{ environment_vars }}"
   vars:
     failures: [] 
+    successes: []
+    log_successes: False 
     target_tag: 'MVS6.Engineering'
     log_file: '/tmp/ansible_cics_log.txt'
   vars_files:
     - 22-ssc.yml
 
   tasks:
+
+    - name: Record Start of Health Check
+      ansible.builtin.lineinfile: 
+        path: "{{ log_file }}"
+        create: true
+        line: "{{ '%Y-%m-%d %H:%M:%S' | strftime }} {{ inventory_hostname }} Start of Health Check Run for {{ target_tag }}"
+      delegate_to: localhost
 
     - name: Find UsageTag matching requested tag
       ansible.builtin.set_fact:
@@ -63,7 +72,6 @@
         loop_var: region
         label: "{{ region.APPLID }}"
 
-
     - name: Write all failures to log
       ansible.builtin.lineinfile:
         path: "{{ log_file }}"
@@ -71,13 +79,24 @@
         line: "{{ '%Y-%m-%d %H:%M:%S' | strftime }} {{ inventory_hostname }} ***Critical Error*** {{ item }}"
       loop: "{{ failures }}"
       delegate_to: localhost
+      when: failures | length > 0
 
-    - name: Log success when nothing failed
+    - name: Log successes
       ansible.builtin.lineinfile:
         path: "{{ log_file }}"
         create: true
-        line: "{{ '%Y-%m-%d %H:%M:%S' | strftime }} {{ inventory_hostname }} No Errors found"
-      when: failures | length == 0
+        line: "{{ '%Y-%m-%d %H:%M:%S' | strftime }} {{ inventory_hostname }} Check Successful {{ item }}"
+      loop: "{{ successes }}"
+      delegate_to: localhost
+      when: 
+        - log_successes | bool
+        - successes | length > 0
+
+    - name: Record End Health Check
+      ansible.builtin.lineinfile: 
+        path: "{{ log_file }}"
+        create: true
+        line: "{{ '%Y-%m-%d %H:%M:%S' | strftime }} {{ inventory_hostname }} End of Health Check Run for {{ target_tag }}"
       delegate_to: localhost
 
     - name: Fail the play if any check failed

@@ -4,13 +4,15 @@ regiontags:
       - UsageTag: 
         - Tag: "MVS6.Engineering"
         - APPLID: "CICSTS63"
-          search: "DFHSI1517"
+          search: "DFXSI1517"
           mq: True
           mqssid: CSQ9
           db2: True
           db2ssid: DBD1
           tran: IVC2
           tranmsg: 'IVC2 Stopping'
+        - APPLID: "CICSTS63"
+          search: "DFHSI1517"  
       - UsageTag:    
         - Tag: "MVS7.Engineering"
         - APPLID: "CICSTS63"
