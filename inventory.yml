@@ -6,7 +6,7 @@ zos_hosts:
   hosts:
     zos_host:
       ansible_host: x.x.x.x
-      ansible_ssh_user: zos_ssh_user
+      ansible_ssh_user: ssh_user
       ansible_python_interpreter: /usr/lpp/IBM/cyp/v3r14/pyz/bin/python3
       
   vars:

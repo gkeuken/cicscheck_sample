@@ -164,6 +164,8 @@ behaviour is not a surprise:
   This weakens host key verification and exposes the SSH agent to the remote host. For
   anything other than a lab, use a real `known_hosts` file and remove agent forwarding.
 - `remote_tmp = /tmp` is a shared directory on z/OS. Use a user-owned directory if possible.
+- `inventory.yml` contains host addresses and user names. Do not commit real values to a
+  shared repository. Keep them in a local or vaulted inventory and add it to `.gitignore`.
 - No passwords or keys are stored in these files. Authentication is by SSH public key.
 - The default log location is `/tmp`, which is readable by other users on the control
   node. Use a restricted directory for production use.

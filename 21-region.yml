@@ -94,16 +94,18 @@
 
         - name: Search for {{ region.db2ssid }} in {{ region.APPLID }} and set fact. Fail if not different than expected
           ansible.builtin.set_fact:
-            Db2id: "{{ db2out.stdout | regex_search('Db2id\\(\\s*(\\w+)\\s*\\)', '\\1') | default('None') | first }}"
-          when: region.db2 | default(false)
+            Db2id: "{{ db2out.stdout | regex_search('Db2id\\(\\s*(\\w+)\\s*\\)', '\\1') | default('notfound') | first }}"
+          when:
+            - region.db2 | default(false)
+            - db2out.stdout | regex_search('Db2id\\(\\s*(\\w+)\\s*\\)', '\\1') is not none
 
         - debug: msg="{{ Db2id }} {{ region.db2ssid }}"
-          when: region.db2 | default(false)
+          when: region.db2 | default(false) and Db2id is defined
 
         - assert: 
             that:
               - Db2id == region.db2ssid
-          when: region.db2 | default(false)
+          when: region.db2 | default(false) and Db2id is defined
           register: db2assert
           ignore_errors: True
 
@@ -118,7 +120,7 @@
         - name: Record Db2 Connection failure
           ansible.builtin.set_fact:
             failures: "{{ failures + [region.APPLID ~ ': Db2 Connection ' ~ region.db2ssid ~ ' not found to be active'] }}"
-          when: db2con_failed
+          when: db2con_failed or Db2id is not defined
         
 #
 #  MQ Section
@@ -136,22 +138,24 @@
         - name: Search for {{ region.mqssid }} in {{ region.APPLID }} and set fact. Fail if not different than expected
           ansible.builtin.set_fact:
             Mqqmgr: "{{ mqout.stdout | regex_search('Mqqmgr\\((\\w+)\\)', '\\1') | default('None') | first }}"
-          when: region.mq | default(false)
+          when: 
+            - region.mq | default(false)
+            - mqout.stdout | regex_search('Mqqmgr\\((\\w+)\\)', '\\1') is not none
 
         - name: Check that {{ region.mqssid }} in {{ region.APPLID }} is connected. Fail if not
           ansible.builtin.set_fact:
             Connectst: "{{ mqout.stdout | regex_search('Connectst\\(\\s*(\\w+)\\s*\\)', '\\1') | default('None') | first }}"
-          when: region.mq | default(false)
+          when: region.mq | default(false) and Mqqmgr is defined
 
         - debug: msg="{{ Mqqmgr }} {{ region.mqssid }} {{ Connectst }}"
-          when: region.mq | default(false)
+          when: region.mq | default(false) and Mqqmgr is defined
 
         - name: MQ Assertions
           ansible.builtin.assert:
             that:
               - Connectst == 'Connected'
               - region.mqssid == Mqqmgr
-          when: region.mq | default(false)
+          when: region.mq | default(false) and Mqqmgr is defined
           register: mqassert
           ignore_errors: True
 
@@ -166,4 +170,4 @@
         - name: Record MQ Connection failure
           ansible.builtin.set_fact:
             failures: "{{ failures + [region.APPLID ~ ': MQ Connection ' ~ region.mqssid ~ ' not found to be connected'] }}"
-          when: mqcon_failed
+          when: mqcon_failed or Mqqmgr is not defined

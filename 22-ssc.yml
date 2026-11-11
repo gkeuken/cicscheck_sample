@@ -11,6 +11,13 @@ regiontags:
           db2ssid: DBD1
           tran: IVC2
           tranmsg: 'IVC2 Stopping'
+      - UsageTag:    
+        - Tag: "MVS7.Engineering"
+        - APPLID: "CICSTS63"
+          mq: True
+          mqssid: CSQ9
+          db2: True
+          db2ssid: DBD1
       - UsageTag:
         - Tag: "MVS1.Engineering"
         - APPLID: "CICSTS64"

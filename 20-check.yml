@@ -3,7 +3,7 @@
   environment: "{{ environment_vars }}"
   vars:
     failures: [] 
-    target_tag: 'MVS1.Engineering'
+    target_tag: 'MVS6.Engineering'
     log_file: '/tmp/ansible_cics_log.txt'
   vars_files:
     - 22-ssc.yml
